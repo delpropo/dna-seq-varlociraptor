@@ -4,6 +4,7 @@ rule get_sra:
         "sra/{accession}_2.fastq.gz",
     log:
         "logs/get-sra/{accession}.log",
+    threads: 1
     wrapper:
         "v1.2.0/bio/sra-tools/fasterq-dump"
 
@@ -64,5 +65,6 @@ rule merge_fastqs:
         "logs/merge-fastqs/{sample}_{read}.log",
     wildcard_constraints:
         read="single|R1|R2",
+    threads: 1
     shell:
         "cat {input} > {output} 2> {log}"

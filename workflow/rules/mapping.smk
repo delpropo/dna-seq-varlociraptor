@@ -25,6 +25,7 @@ rule annotate_umis:
         mem_gb="10",
     log:
         "logs/fgbio/annotate_bam/{sample}.log",
+    threads: 1
     wrapper:
         "v1.2.0/bio/fgbio/annotatebamwithumis"
 
@@ -41,6 +42,7 @@ rule mark_duplicates:
         "logs/picard/dedup/{sample}.log",
     params:
         extra=get_markduplicates_extra,
+    threads: 1
     wrapper:
         "v1.2.0/bio/picard/markduplicates"
 
@@ -57,6 +59,7 @@ rule calc_consensus_reads:
         "logs/consensus/{sample}.log",
     conda:
         "../envs/rbt.yaml"
+    threads: 1
     shell:
         "rbt collapse-reads-to-fragments bam {input} {output} &> {log}"
 
@@ -147,5 +150,6 @@ rule apply_bqsr:
     params:
         extra=config["params"]["gatk"]["applyBQSR"],  # optional
         java_opts="",  # optional
+    threads: 1
     wrapper:
         "v1.2.0/bio/gatk/applybqsr"

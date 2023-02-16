@@ -33,6 +33,7 @@ rule varlociraptor_alignment_properties:
         "logs/varlociraptor/estimate-alignment-properties/{group}/{sample}.log",
     conda:
         "../envs/varlociraptor.yaml"
+    threads: 1
     shell:
         "varlociraptor estimate alignment-properties {input.ref} --bam {input.bam} > {output} 2> {log}"
 
@@ -55,6 +56,7 @@ rule varlociraptor_preprocess:
         "benchmarks/varlociraptor/preprocess/{group}/{sample}.{caller}.{scatteritem}.tsv"
     conda:
         "../envs/varlociraptor.yaml"
+    threads: 1
     shell:
         "varlociraptor preprocess variants --candidates {input.candidates} {params.extra} "
         "--alignment-properties {input.alignment_props} {input.ref} --bam {input.bam} --output {output} "
@@ -79,6 +81,7 @@ rule varlociraptor_call:
         "../envs/varlociraptor.yaml"
     benchmark:
         "benchmarks/varlociraptor/call/{group}.{caller}.{scatteritem}.tsv"
+    threads: 1
     shell:
         "(varlociraptor call variants {params.extra} generic --obs {params.obs}"
         " --scenario {input.scenario} {params.postprocess} {output}) 2> {log}"
@@ -95,6 +98,7 @@ rule sort_calls:
         "../envs/bcftools.yaml"
     resources:
         mem_mb=8000,
+    threads: 1
     shell:
         "bcftools sort --max-mem {resources.mem_mb}M --temp-dir `mktemp -d` "
         "-Ob {input} > {output} 2> {log}"
@@ -110,5 +114,6 @@ rule bcftools_concat:
         "logs/concat-calls/{group}.{scatteritem}.log",
     params:
         extra="-a",  # TODO Check this
+    threads: 1
     wrapper:
         "v1.14.1/bio/bcftools/concat"

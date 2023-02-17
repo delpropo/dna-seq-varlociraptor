@@ -22,3 +22,9 @@ A Snakemake workflow for calling small and structural variants under any kind of
 The usage of this workflow is described in the [Snakemake Workflow Catalog](https://snakemake.github.io/snakemake-workflow-catalog/?usage=snakemake-workflows%2Fdna-seq-varlociraptor).
 
 If you use this workflow in a paper, don't forget to give credits to the authors by citing the URL of this (original) repository and its DOI (see above).
+
+snakedeploy deploy-workflow https://github.com/delpropo/dna-seq-varlociraptor . --tag master
+
+for the original workflow enter current version
+
+snakedeploy deploy-workflow https://github.com/snakemake-workflows/dna-seq-varlociraptor . --tag v3.21.1

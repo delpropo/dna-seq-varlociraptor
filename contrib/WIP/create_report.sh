@@ -1,0 +1,1 @@
+snakemake --report report.zip

@@ -8,6 +8,9 @@
 !workflow/rules/annotation/*
 !workflow/resources/*
 !config/*
+!contrib/*
+!examples/*
+!tools/*
 !LICENSE
 !README.md
 !.gitignore

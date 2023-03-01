@@ -33,7 +33,7 @@ individual: short observations
 """
 
 # get all files in folder ~/results/plugins and save them in a list
-plugin_files = glob.glob(os.path.join(os.path.expanduser("~"), "results/plugins/*"))
+# plugin_files = glob.glob(os.path.join(os.path.expanduser("~"), "results/plugins/*"))
 
 
 # updated to allows for additional fields to be passed which will not have "ANN" added by default

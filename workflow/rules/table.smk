@@ -106,7 +106,7 @@ def get_vembrane_config_expansion(wildcards, input):
         [
             field
             for field in config_output.get("info_fields", [])
-            if field not in info_fields and field not in annotation_fields
+            # if field not in info_fields and field not in annotation_fields
         ]
 
     append_items(info_fields, "INFO['{}']".format, str)

@@ -13,13 +13,14 @@ PROB_EPSILON = 0.01  # columns with all probabilities below will be dropped
 
 
 def write(df, path):
+    df = df.drop(["mane_plus_clinical"], axis="columns", errors="ignore")
     df = df.drop(["canonical"], axis="columns", errors="ignore")
     if not df.empty:
         remaining_columns = df.dropna(how="all", axis="columns").columns.tolist()
         if path == snakemake.output.coding:
             # ensure that these columns are kept, even if they contain only NAs in a coding setting
             remaining_columns.extend(["revel", "hgvsp", "symbol"])
-            remaining_columns = [ col for col in df.columns if col in remaining_columns ]
+            remaining_columns = [col for col in df.columns if col in remaining_columns]
         df = df[remaining_columns]
     df.to_csv(path, index=False, sep="\t")
 
@@ -108,10 +109,52 @@ def reorder_prob_cols(df):
     return df
 
 
+def reorder_vaf_cols(df):
+    split_index = df.columns.get_loc("consequence")
+    left_columns = df.iloc[:, 0:split_index].columns
+    vaf_columns = df.filter(regex=": allele frequency$").columns
+    right_columns = df.iloc[:, split_index:].columns.drop(vaf_columns)
+    reordered_columns = left_columns.append([vaf_columns, right_columns])
+    return df[reordered_columns]
+
+
 def cleanup_dataframe(df):
     df = drop_low_prob_cols(df)
     df = reorder_prob_cols(df)
+    df = reorder_vaf_cols(df)
     df = format_floats(df)
+    return df
+
+
+def join_short_obs(df, samples):
+    for sample in samples:
+        sobs_loc = df.columns.get_loc(f"{sample}: observations")
+        df.insert(
+            sobs_loc,
+            f"{sample}: short observations",
+            df[f"{sample}: short ref observations"]
+            + ","
+            + df[f"{sample}: short alt observations"],
+        )
+    df = df.drop(
+        df.columns[
+            df.columns.str.endswith(": short ref observations")
+            | df.columns.str.endswith(": short alt observations")
+        ],
+        axis=1,
+    )
+    return df
+
+
+def bin_max_vaf(df, samples):
+    af_columns = [f"{sample}: allele frequency" for sample in samples]
+    max_vaf = df[af_columns].apply("max", axis=1)
+    df["binned max vaf"] = pd.cut(
+        max_vaf, [0, 0.33, 0.66, 1.0], labels=["low", "medium", "high"]
+    )
+    df["binned max vaf"] = pd.Categorical(
+        df["binned max vaf"], ["low", "medium", "high"]
+    )
     return df
 
 
@@ -124,6 +167,14 @@ calls["clinical significance"] = (
     .replace("", np.nan)
 )
 
+calls["protein alteration (short)"] = (
+    calls["protein alteration (short)"].apply(eval).apply("/".join).replace("", np.nan)
+)
+
+samples = get_samples(calls)
+
+if calls.columns.str.endswith(": allele frequency").any():
+    calls = bin_max_vaf(calls, samples)
 
 if not calls.empty:
     # these below only work on non empty dataframes
@@ -135,22 +186,21 @@ else:
 
 
 calls.set_index("gene", inplace=True, drop=False)
-samples = get_samples(calls)
 
+if calls.columns.str.endswith(": short ref observations").any():
+    calls = join_short_obs(calls, samples)
 
 coding = ~pd.isna(calls["hgvsp"])
-canonical = calls["canonical"]
+canonical = calls["canonical"].notnull()
+mane_plus_clinical = calls["mane_plus_clinical"].notnull()
+canonical_mane = canonical | mane_plus_clinical
 
-noncoding_calls = calls[~coding & canonical]
+noncoding_calls = calls[~coding & canonical_mane]
 noncoding_calls = cleanup_dataframe(noncoding_calls)
 write(noncoding_calls, snakemake.output.noncoding)
 
-coding_calls = calls[coding & canonical].drop(
+coding_calls = calls[coding & canonical_mane].drop(
     [
-        "chromosome",
-        "position",
-        "reference allele",
-        "alternative allele",
         "end position",
         "event",
         "id",
@@ -166,5 +216,4 @@ write(
     coding_calls,
     snakemake.output.coding,
 )
-
-# TODO add possibility to also see non-canonical transcripts (low priority, once everything else works).
+# TODO add possibility to also see non-canoncical or non-mane+clinical transcripts (low priority, once everything else works).

@@ -81,7 +81,7 @@ rule control_fdr:
         "../envs/varlociraptor.yaml"
     threads: 1
     shell:
-        "varlociraptor filter-calls control-fdr {input} {params.query[local]} --var {wildcards.vartype} "
+        "varlociraptor filter-calls control-fdr {input} {params.query[mode]} --var {wildcards.vartype} "
         "--events {params.query[events]} --fdr {params.query[threshold]} > {output} 2> {log}"
 
 

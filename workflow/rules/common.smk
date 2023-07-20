@@ -54,6 +54,10 @@ def _group_or_sample(row):
 
 
 samples["group"] = [_group_or_sample(row) for _, row in samples.iterrows()]
+
+if "umi_read" not in samples.columns:
+    samples["umi_read"] = pd.NA
+
 validate(samples, schema="../schemas/samples.schema.yaml")
 
 
@@ -79,9 +83,6 @@ units = (
     .set_index(["sample_name", "unit_name"], drop=False)
     .sort_index()
 )
-
-if "umis" not in units.columns:
-    units["umis"] = pd.NA
 
 validate(units, schema="../schemas/units.schema.yaml")
 
@@ -173,7 +174,7 @@ def get_control_fdr_input(wildcards):
         by = "ann" if query["local"] else "odds"
         return "results/calls/{{group}}.{{event}}.filtered_{by}.bcf".format(by=by)
     else:
-        return "results/calls/{group}.bcf"
+        return "results/final-calls/{group}.annotated.bcf"
 
 
 def get_recalibrate_quality_input(wildcards, bai=False):
@@ -390,7 +391,7 @@ def get_primer_regions(wc):
 def get_markduplicates_extra(wc):
     c = config["params"]["picard"]["MarkDuplicates"]
 
-    if units.loc[wc.sample]["umis"].isnull().any():
+    if sample_has_umis(wc.sample):
         b = ""
     else:
         b = "--BARCODE_TAG RX"
@@ -615,24 +616,31 @@ def get_fdr_control_params(wildcards):
         "threshold", config["calling"]["fdr-control"].get("threshold", 0.05)
     )
     events = query["varlociraptor"]
-    local = (
-        "--local"
-        if query.get("local", config["calling"]["fdr-control"].get("local", False))
-        else ""
-    )
+    local = query.get("local", config["calling"]["fdr-control"].get("local", False))
+    mode = "--mode local-smart" if local else "--mode global-smart"
     return {
         "threshold": threshold,
         "events": events,
+        "mode": mode,
         "local": local,
         "filter": query.get("filter"),
     }
 
 
-def get_fixed_candidate_calls(wildcards):
-    if wildcards.caller == "delly":
-        return "results/candidate-calls/{group}.delly.no_bnds.bcf"
-    else:
-        return "results/candidate-calls/{group}.{caller}.bcf"
+def get_fixed_candidate_calls(ext="bcf"):
+    def inner(wildcards):
+        if wildcards.caller == "delly":
+            return expand(
+                "results/candidate-calls/{{group}}.delly.no_bnds.{ext}",
+                ext=ext,
+            )
+        else:
+            return expand(
+                "results/candidate-calls/{{group}}.{{caller}}.{ext}",
+                ext=ext,
+            )
+
+    return inner
 
 
 def get_filter_targets(wildcards, input):
@@ -672,12 +680,12 @@ def get_annotation_filter_expression(wildcards):
         get_filter_expression(filter)
         for filter in get_annotation_filter_names(wildcards)
     ]
-    return " and ".join(filters).replace('"', '\\"')
+    return " and ".join(map("({})".format, filters)).replace('"', '\\"')
 
 
 def get_annotation_filter_aux(wildcards):
     return [
-        f"--aux {name} {path}"
+        f"--aux {name}={path}"
         for filter in get_annotation_filter_names(wildcards)
         for name, path in get_filter_aux_entries(filter).items()
     ]
@@ -712,7 +720,7 @@ def get_candidate_filter_aux():
         return ""
     else:
         return [
-            f"--aux {name} {path}"
+            f"--aux {name}={path}"
             for name, path in get_filter_aux_entries("candidates").items()
         ]
 
@@ -783,13 +791,22 @@ def get_tabix_revel_params():
     return f"-f -s 1 -b {column} -e {column}"
 
 
-def get_fastqs(wc):
+def get_untrimmed_fastqs(wc):
+    return units.loc[wc.sample, wc.read]
+
+
+def get_trimmed_fastqs(wc):
     return expand(
         "results/trimmed/{sample}/{unit}_{read}.fastq.gz",
         unit=units.loc[wc.sample, "unit_name"],
         sample=wc.sample,
         read=wc.read,
     )
+
+
+def get_umi_fastq(wc):
+    read = samples.loc[wc.sample, "umi_read"]
+    return "results/untrimmed/{{sample}}_{R}.fastq.gz".format(R=read)
 
 
 def get_vembrane_config(wildcards, input):
@@ -803,10 +820,16 @@ def get_vembrane_config(wildcards, input):
 
     config_output = config["tables"].get("output", {})
 
-    def append_items(items, field_func, header_func):
+    def append_items(items, field_func, header_func=None):
         for item in items:
-            parts.append(field_func(item))
-            header.append(header_func(item))
+            if type(item) is dict:
+                parts_field = item["expr"]
+                header_name = item["name"]
+            else:
+                parts_field = field_func(item)
+                header_name = header_func(item) if header_func else item
+            parts.append(parts_field)
+            header.append(header_name)
 
     annotation_fields = [
         "SYMBOL",
@@ -814,13 +837,14 @@ def get_vembrane_config(wildcards, input):
         "Feature",
         "IMPACT",
         "HGVSp",
+        {"name": "protein position", "expr": "ANN['Protein_position'].raw"},
+        {"name": "protein alteration (short)", "expr": "ANN['Amino_acids']"},
         "HGVSg",
         "Consequence",
         "CANONICAL",
+        "MANE_PLUS_CLINICAL",
+        {"name": "clinical significance", "expr": "ANN['CLIN_SIG']"},
     ]
-
-    if "REVEL" in config["annotations"]["vep"]["plugins"]:
-        annotation_fields.append("REVEL")
 
     annotation_fields.extend(
         [
@@ -830,8 +854,10 @@ def get_vembrane_config(wildcards, input):
         ]
     )
 
-    append_items(annotation_fields, "ANN['{}']".format, str.lower)
-    append_items(["CLIN_SIG"], "ANN['{}']".format, lambda x: "clinical significance")
+    if "REVEL" in config["annotations"]["vep"]["plugins"]:
+        annotation_fields.append("REVEL")
+
+    append_items(annotation_fields, "ANN['{}']".format, lambda x: x.lower())
 
     samples = get_group_sample_aliases(wildcards)
 
@@ -847,10 +873,29 @@ def get_vembrane_config(wildcards, input):
     append_format_field("AF", "allele frequency")
     append_format_field("DP", "read depth")
     if config_output.get("short_observations", False):
-        append_format_field("SOBS", "short observations")
+        append_format_field("SROBS", "short ref observations")
+        append_format_field("SAOBS", "short alt observations")
+
     if config_output.get("observations", False):
         append_format_field("OBS", "observations")
     return {"expr": join_items(parts), "header": join_items(header)}
+
+
+def get_umi_fastq(wildcards):
+    if samples.loc[wildcards.sample, "umi_read"] in ["fq1", "fq2"]:
+        return "results/untrimmed/{S}_{R}.fastq.gz".format(
+            S=wildcards.sample, R=samples.loc[wildcards.sample, "umi_read"]
+        )
+    else:
+        return samples.loc[wildcards.sample, "umi_read"]
+
+
+def sample_has_umis(sample):
+    return pd.isna(samples.loc[sample, "umi_read"])
+
+
+def get_umi_read_structure(wildcards):
+    return "-r {}".format(samples.loc[wildcards.sample, "umi_read_structure"])
 
 
 def get_sample_alias(wildcards):

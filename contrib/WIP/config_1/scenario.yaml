@@ -1,0 +1,27 @@
+__definitions__:
+  - samples = params.samples.set_index("alias")
+
+
+
+
+species:
+  heterozygosity: 0.001
+  germline-mutation-rate: 1e-3
+  ploidy:
+    male:
+      all: 2
+      X: 1
+      Y: 1
+    female:
+      all: 2
+      X: 2
+      Y: 0
+
+samples:
+  individual:
+    sex: male
+
+events:
+  het: "individual:0.5"
+  hom: "individual:1.0"
+  neither: "individual:0.0"

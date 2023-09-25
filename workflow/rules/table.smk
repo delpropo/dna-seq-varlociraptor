@@ -8,6 +8,8 @@ rule vembrane_table:
         "../envs/vembrane.yaml"
     params:
         config=lambda wc, input: get_vembrane_config(wc, input),
+    threads:
+        1
     log:
         "logs/vembrane-table/{group}.{event}.log",
     shell:
@@ -22,6 +24,8 @@ rule tsv_to_excel:
         xlsx="results/{x}.xlsx",
     conda:
         "../envs/excel.yaml"
+    threads:
+        1
     log:
         "logs/tsv_to_xlsx/{x}.log",
     script:

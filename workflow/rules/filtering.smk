@@ -11,6 +11,7 @@ rule filter_candidates_by_annotation:
         aux=get_candidate_filter_aux(),
     conda:
         "../envs/vembrane.yaml"
+    threads: 1
     shell:
         "(bcftools norm -Ou --do-not-normalize --multiallelics -any {input} | "
         'vembrane filter {params.aux} "{params.filter}" --output-fmt bcf --output {output}) &> {log}'
@@ -29,6 +30,7 @@ rule filter_by_annotation:
         aux=get_annotation_filter_aux,
     conda:
         "../envs/vembrane.yaml"
+    threads: 1
     shell:
         'vembrane filter {params.aux} "{params.filter}" {input.bcf} --output-fmt bcf --output {output} &> {log}'
 
@@ -46,6 +48,7 @@ rule filter_odds:
         "logs/filter-calls/posterior_odds/{group}.{event}.{scatteritem}.log",
     conda:
         "../envs/varlociraptor.yaml"
+    threads: 1
     shell:
         "varlociraptor filter-calls posterior-odds --events {params.events} --odds barely < {input} > {output} 2> {log}"
 
@@ -60,6 +63,7 @@ rule gather_calls:
         "logs/gather-calls/{group}.{event}.filtered_{by}.log",
     params:
         extra="-a",
+    threads: 1
     wrapper:
         "v2.3.2/bio/bcftools/concat"
 
@@ -75,6 +79,7 @@ rule control_fdr:
         query=get_fdr_control_params,
     conda:
         "../envs/varlociraptor.yaml"
+    threads: 1
     shell:
         "varlociraptor filter-calls control-fdr {input} {params.query[mode]} --var {wildcards.vartype} "
         "--events {params.query[events]} --fdr {params.query[threshold]} > {output} 2> {log}"
@@ -90,6 +95,7 @@ rule merge_calls:
         "logs/merge-calls/{group}.{event}.log",
     params:
         extra="-a",
+    threads: 1
     wrapper:
         "v2.3.2/bio/bcftools/concat"
 
@@ -103,5 +109,6 @@ rule convert_phred_scores:
         "logs/convert-phred-scores/{group}.{event}.log",
     conda:
         "../envs/varlociraptor.yaml"
+    threads: 1
     shell:
         "varlociraptor decode-phred < {input} > {output} 2> {log}"

@@ -1,0 +1,42 @@
+
+
+species:
+  heterozygosity: 0.001
+  germline-mutation-rate: 1e-3
+  ploidy:
+    male:
+      all: 2
+      X: 1
+      Y: 1
+    female:
+      all: 2
+      X: 2
+      Y: 0
+
+samples:
+  mother:
+    sex: female
+  father:
+    sex: male
+  child:
+    sex: male
+    inheritance:
+      mendelian:
+        from:
+          - mother
+          - father
+
+
+events:
+  het_child:        "child:0.5"
+  hom_child:        "child:1.0"
+  het_mother:       "mother:0.5"
+  hom_mother:       "mother:1.0"
+  het_father:       "father:0.5"
+  hom_father:       "father:1.0"
+  denovo_child:     "(child:0.5 | child:1.0) & mother:0.0 & father:0.0"
+  inherited_either: "!mother:0.0 | !father:0.0  & (child:0.5 | child:1.0)"
+  inherited_both:   "!mother:0.0 & !father:0.0  & (child:0.5 | child:1.0)"
+  inherited_mother: "!mother:0.0 &  father:0.0  & (child:0.5 | child:1.0)"
+  inherited_father: "mother:0.0  & !father:0.0  & (child:0.5 | child:1.0)"
+  

@@ -40,6 +40,7 @@ rule annotate_umis:
         mem_mb=lambda wc, input: 2.5 * input.size_mb,
     log:
         "logs/fgbio/annotate_bam/{sample}.log",
+    threads: 1
     wrapper:
         "v2.3.2/bio/fgbio/annotatebamwithumis"
 
@@ -56,6 +57,7 @@ rule mark_duplicates:
         "logs/picard/dedup/{sample}.log",
     params:
         extra=get_markduplicates_extra,
+    threads: 1
     resources:
         #https://broadinstitute.github.io/picard/faq.html
         mem_mb=3000,
@@ -75,6 +77,7 @@ rule calc_consensus_reads:
         "logs/consensus/{sample}.log",
     conda:
         "../envs/rbt.yaml"
+    threads: 1
     shell:
         "rbt collapse-reads-to-fragments bam {input} {output} &> {log}"
 
@@ -167,5 +170,6 @@ rule apply_bqsr:
     params:
         extra=config["params"]["gatk"]["applyBQSR"],  # optional
         java_opts="",  # optional
+    threads: 1
     wrapper:
         "v2.3.2/bio/gatk/applybqsr"

@@ -6,8 +6,10 @@ rule fastqc:
         zip="results/qc/fastqc/{sample}/{unit}.{fq}_fastqc.zip",  # the suffix _fastqc.zip is necessary for multiqc to find the file. If not using multiqc, you are free to choose an arbitrary filename
     log:
         "logs/fastqc/{sample}/{unit}.{fq}.log",
+    resources:
+        mem_mb=1024,
     wrapper:
-        "v1.3.2/bio/fastqc"
+        "v2.10.0/bio/fastqc"
 
 
 rule samtools_idxstats:
@@ -19,7 +21,7 @@ rule samtools_idxstats:
     log:
         "logs/samtools/idxstats/{sample}.log",
     wrapper:
-        "v1.10.0/bio/samtools/idxstats"
+        "v2.3.2/bio/samtools/idxstats"
 
 
 rule samtools_stats:
@@ -30,7 +32,7 @@ rule samtools_stats:
     log:
         "logs/samtools/stats/{sample}.log",
     wrapper:
-        "v1.10.0/bio/samtools/stats"
+        "v2.3.2/bio/samtools/stats"
 
 
 rule multiqc:
@@ -48,4 +50,4 @@ rule multiqc:
     log:
         "logs/multiqc/{group}.log",
     wrapper:
-        "v1.21.2/bio/multiqc"
+        "v2.10.0/bio/multiqc"

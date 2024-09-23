@@ -30,6 +30,12 @@ mutational_burden:
     - SOMATIC_TUMOR_MEDIUM
     - SOMATIC_TUMOR_HIGH
 
+# Plotting of known mutational signatures
+mutational_signatures:
+  activate: false
+  events:
+    - some_id
+
 calling:
   delly:
     activate: true
@@ -61,8 +67,12 @@ annotations:
     datasources:
       - DrugBank
   vep:
-    params: --everything
-    plugins: []
+    candidate_calls:
+      params: ""
+      plugins: []
+    final_calls:
+      params: --everything
+      plugins: []
 
 
 params:
@@ -84,6 +94,9 @@ params:
     preprocess: "--max-depth 200"
   freebayes:
     min_alternate_fraction: 0.05 # Reduce for calling variants with lower VAFs
+
+gene_coverage:
+  min_avg_coverage: 5
 
 report:
   activate: true

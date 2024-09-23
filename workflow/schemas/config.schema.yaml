@@ -106,11 +106,17 @@ properties:
           library_length:
             type: integer
 
+  gene_coverage:
+    type: object
+    properties:
+      min_avg_coverage:
+        type: integer
+
   report:
     type: object
-    activate:
-      type: boolean
     properties:
+      activate:
+        type: boolean
       stratify:
         type: object
         properties:
@@ -127,6 +133,22 @@ properties:
       - activate
       - max_read_depth
 
+  population:
+    type: object
+    properties:
+      db:
+        type: object
+        properties:
+          activate:
+            type: boolean
+          path:
+            type: string
+          events:
+            type: array
+            items: 
+              type: string
+        required:
+          - activate
 
   tables:
     type: object
@@ -142,14 +164,29 @@ properties:
             type: boolean
           annotation_fields:
             type: array
-            items:
-              type: string
+            items: 
+               anyOf:
+                - type: string
+                - type: object
+                  properties:
+                    name:
+                      type: string
+                    expr:
+                      type: string
     generate_excel:
       type: boolean
     required:
       - activate
 
   mutational_burden:
+    type: object
+    properties:
+      activate:
+        type: boolean
+    required:
+      - activate
+
+  mutational_signatures:
     type: object
     properties:
       activate:
@@ -185,6 +222,13 @@ properties:
             maximum: 1.0
           local:
             type: boolean
+          mode:
+            type: string
+            enum: 
+              - local-smart
+              - local-strict
+              - global-smart
+              - global-strict
           events:
             $ref: "#/definitions/evententry"
             description: "a map of <eventname: event> pairs"
@@ -226,15 +270,31 @@ properties:
               type: string
       vep:
         properties:
-          params:
-            type: string
-          plugins:
-            type: array
-            items:
-              type: string
+          candidate_calls:
+            properties:
+              params:
+                type: string
+              plugins:
+                type: array
+                items:
+                  type: string
+            required:
+              - params
+              - plugins
+          final_calls:
+            properties:
+              params:
+                type: string
+              plugins:
+                type: array
+                items:
+                  type: string
+            required:
+              - params
+              - plugins
         required:
-          - params
-          - plugins
+          - candidate_calls
+          - final_calls
     required:
       - vep
       - vcfs

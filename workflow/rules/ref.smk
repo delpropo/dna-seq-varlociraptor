@@ -11,7 +11,7 @@ rule get_genome:
         chromosome=config["ref"].get("chromosome"),
     cache: "omit-software"
     wrapper:
-        "v1.2.0/bio/reference/ensembl-sequence"
+        "v2.3.2/bio/reference/ensembl-sequence"
 
 
 rule genome_faidx:
@@ -23,7 +23,7 @@ rule genome_faidx:
         "logs/genome-faidx.log",
     cache: "omit-software"
     wrapper:
-        "v1.10.0/bio/samtools/faidx"
+        "v2.3.2/bio/samtools/faidx"
 
 
 rule genome_dict:
@@ -56,12 +56,12 @@ rule get_known_variants:
         chromosome=config["ref"].get("chromosome"),
     cache: "omit-software"
     wrapper:
-        "v1.12.0/bio/reference/ensembl-variation"
+        "v3.7.0/bio/reference/ensembl-variation"
 
 
-rule get_annotation_gz:
+rule get_annotation:
     output:
-        "resources/annotation.gtf.gz",
+        "resources/annotation.gtf",
     params:
         species=config["ref"]["species"],
         release=config["ref"]["release"],
@@ -71,12 +71,12 @@ rule get_annotation_gz:
         "logs/get_annotation.log",
     cache: "omit-software"  # save space and time with between workflow caching (see docs)
     wrapper:
-        "v1.5.0/bio/reference/ensembl-annotation"
+        "v2.3.2/bio/reference/ensembl-annotation"
 
 
 rule determine_coding_regions:
     input:
-        "resources/annotation.gtf.gz",
+        "resources/annotation.gtf",
     output:
         "resources/coding_regions.bed.gz",
     log:
@@ -87,7 +87,7 @@ rule determine_coding_regions:
     shell:
         # filter for `exon` entries, but unclear how to exclude pseudogene exons...
         """
-        ( zcat {input} | \\
+        ( cat {input} | \\
           awk 'BEGIN {{ IFS = "\\t"}} {{ if ($3 == "exon") {{ print $0 }} }}' | \\
           grep 'transcript_biotype "protein_coding"' | \\
           grep 'gene_biotype "protein_coding"' | \\
@@ -118,11 +118,9 @@ rule bwa_index:
         idx=multiext(genome, ".amb", ".ann", ".bwt", ".pac", ".sa"),
     log:
         "logs/bwa_index.log",
-    resources:
-        mem_mb=369000,
     cache: True
     wrapper:
-        "v1.10.0/bio/bwa/index"
+        "v2.3.2/bio/bwa/index"
 
 
 rule get_vep_cache:
@@ -134,8 +132,9 @@ rule get_vep_cache:
         release=config["ref"]["release"],
     log:
         "logs/vep/cache.log",
+    cache: "omit-software"
     wrapper:
-        "v1.22.0/bio/vep/cache"
+        "v3.3.5/bio/vep/cache"
 
 
 rule get_vep_plugins:
@@ -146,4 +145,4 @@ rule get_vep_plugins:
     log:
         "logs/vep/plugins.log",
     wrapper:
-        "v1.12.0/bio/vep/plugins"
+        "v3.3.5/bio/vep/plugins"

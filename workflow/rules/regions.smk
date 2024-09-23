@@ -18,13 +18,27 @@ rule get_target_regions:
         """
 
 
+rule transform_gene_annotations:
+    input:
+        "resources/annotation.gtf",
+    output:
+        "resources/gene_annotation.bed",
+    log:
+        "logs/plot_coverage/transform_gene_regions.log",
+    script:
+        "../scripts/transform_gene_regions.py"
+
+
 rule build_sample_regions:
     input:
         bam="results/recal/{sample}.bam",
         bai="results/recal/{sample}.bai",
+        bed="resources/gene_annotation.bed",
     output:
         "results/regions/{group}/{sample}.mosdepth.global.dist.txt",
         "results/regions/{group}/{sample}.quantized.bed.gz",
+        "results/regions/{group}/{sample}.regions.bed.gz",
+        "results/regions/{group}/{sample}.mosdepth.region.dist.txt",
         summary="results/regions/{group}/{sample}.mosdepth.summary.txt",  # this named output is required for prefix parsing
     log:
         "logs/mosdepth/regions/{group}_{sample}.log",
@@ -32,7 +46,7 @@ rule build_sample_regions:
         extra="--no-per-base",
         quantize="1:",
     wrapper:
-        "v1.12.0/bio/mosdepth"
+        "v2.3.2/bio/mosdepth"
 
 
 rule merge_expanded_group_regions:
@@ -70,9 +84,11 @@ rule merge_covered_group_regions:
 rule filter_group_regions:
     input:
         regions="results/regions/{group}.{regions_type}_regions.bed",
-        predefined="resources/target_regions/target_regions.bed"
-        if "target_regions" in config
-        else [],
+        predefined=(
+            "resources/target_regions/target_regions.bed"
+            if "target_regions" in config
+            else []
+        ),
         fai=genome_fai,
     output:
         "results/regions/{group}.{regions_type}_regions.filtered.bed",

@@ -27,6 +27,7 @@ rule varlociraptor_alignment_properties:
         ref=genome,
         ref_idx=genome_fai,
         bam="results/recal/{sample}.bam",
+        bai="results/recal/{sample}.bai",
     output:
         "results/alignment-properties/{group}/{sample}.json",
     log:
@@ -42,14 +43,16 @@ rule varlociraptor_preprocess:
     input:
         ref=genome,
         ref_idx=genome_fai,
-        candidates=get_candidate_calls(),
+        candidates=lambda wc: get_candidate_calls,
         bam="results/recal/{sample}.bam",
         bai="results/recal/{sample}.bai",
         alignment_props="results/alignment-properties/{group}/{sample}.json",
     output:
         "results/observations/{group}/{sample}.{caller}.{scatteritem}.bcf",
     params:
-        extra=config["params"]["varlociraptor"]["preprocess"],
+        extra=lambda wc: get_varlociraptor_params(
+            wc, config["params"]["varlociraptor"]["preprocess"]
+        ),
     log:
         "logs/varlociraptor/preprocess/{group}/{sample}.{caller}.{scatteritem}.log",
     benchmark:
@@ -68,15 +71,21 @@ rule varlociraptor_call:
         obs=get_group_observations,
         scenario="results/scenarios/{group}.yaml",
     output:
-        temp("results/calls/{group}.{caller}.{scatteritem}.bcf"),
+        temp("results/calls/{group}.{caller}.{scatteritem}.unsorted.bcf"),
     log:
         "logs/varlociraptor/call/{group}.{caller}.{scatteritem}.log",
     params:
         obs=get_varlociraptor_obs_args,
-        extra=config["params"]["varlociraptor"]["call"],
-        postprocess=">"
-        if not config["calling"].get("infer_genotypes")
-        else "| varlociraptor genotype >",
+        # Add -o as workaround to separate info field entries from subcommand
+        extra=lambda wc: get_varlociraptor_params(
+            wc, config["params"]["varlociraptor"]["call"]
+        )
+        + " -o /dev/stdout",
+        postprocess=(
+            ">"
+            if not config["calling"].get("infer_genotypes")
+            else "| varlociraptor genotype >"
+        ),
     conda:
         "../envs/varlociraptor.yaml"
     benchmark:
@@ -89,19 +98,27 @@ rule varlociraptor_call:
 
 rule sort_calls:
     input:
-        "results/calls/{group}.{caller}.{scatteritem}.bcf",
+        "results/calls/{group}.{caller}.{scatteritem}.unsorted.bcf",
     output:
         temp("results/calls/{group}.{caller}.{scatteritem}.bcf"),
+    params:
+        # Set to True, in case you want uncompressed BCF output
+        uncompressed_bcf=False,
+        # Extra arguments
+        extras="",
     log:
         "logs/bcf-sort/{group}.{caller}.{scatteritem}.log",
-    conda:
-        "../envs/bcftools.yaml"
     resources:
         mem_mb=8000,
+<<<<<<< HEAD
     threads: 1
     shell:
         "bcftools sort --max-mem {resources.mem_mb}M --temp-dir `mktemp -d` "
         "-Ob {input} > {output} 2> {log}"
+=======
+    wrapper:
+        "v2.6.0/bio/bcftools/sort"
+>>>>>>> upstream/master
 
 
 rule bcftools_concat:
@@ -109,11 +126,11 @@ rule bcftools_concat:
         calls=get_scattered_calls(),
         indexes=get_scattered_calls(ext="bcf.csi"),
     output:
-        "results/calls/{group}.{scatteritem}.bcf",
+        "results/calls/{group}.{calling_type}.{scatteritem}.bcf",
     log:
-        "logs/concat-calls/{group}.{scatteritem}.log",
+        "logs/concat-calls/{group}.{calling_type}.{scatteritem}.log",
     params:
         extra="-a",  # TODO Check this
     threads: 1
     wrapper:
-        "v1.14.1/bio/bcftools/concat"
+        "v2.3.2/bio/bcftools/concat"

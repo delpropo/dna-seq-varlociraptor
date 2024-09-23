@@ -9,7 +9,7 @@ ref:
   # Ensembl species name
   species: homo_sapiens
   # Ensembl release
-  release: 104
+  release: 109
   # Genome build
   build: GRCh38
   chromosome: 1
@@ -48,6 +48,12 @@ mutational_burden:
     - somatic_tumor_high
     - somatic_tumor_medium
     - somatic_tumor_low
+
+# Plotting of known mutational signatures
+mutational_signatures:
+  activate: false
+  events:
+    - some_id
 
 # printing of variants in a matrix, sorted by recurrence
 report:
@@ -118,10 +124,14 @@ annotations:
     datasources:
       - DrugBank
   vep:
-    # Consider removing --everything if VEP is slow for you (e.g. for WGS), 
-    # and think carefully about which annotations you need.
-    params: ""
-    plugins: []
+    candidate_calls:
+      params: ""
+      plugins: []
+    final_calls:
+      # Consider removing --everything if VEP is slow for you (e.g. for WGS), 
+      # and think carefully about which annotations you need.
+      params: ""
+      plugins: []
 
 params:
   cutadapt: ""
@@ -142,3 +152,6 @@ params:
     preprocess: "--max-depth 300"
   freebayes:
     min_alternate_fraction: 0.05 # Reduce for calling variants with lower VAFs
+
+gene_coverage:
+  min_avg_coverage: 5

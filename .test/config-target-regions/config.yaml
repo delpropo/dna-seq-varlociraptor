@@ -29,6 +29,12 @@ mutational_burden:
   events:
     - present
 
+# Plotting of known mutational signatures
+mutational_signatures:
+  activate: false
+  events:
+    - some_id
+
 calling:
   delly:
     activate: true
@@ -63,11 +69,15 @@ annotations:
     datasources:
       - DrugBank
   vep:
-    params: --everything
-    plugins:
-      # Add any plugin from https://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html
-      # Plugin args can be passed as well, e.g. "LoFtool,path/to/custom/scores.txt".
-      - LoFtool
+    candidate_calls:
+      params: ""
+      plugins: []
+    final_calls:
+      params: --everything
+      plugins:
+        # Add any plugin from https://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html
+        # Plugin args can be passed as well, e.g. "LoFtool,path/to/custom/scores.txt".
+        - LoFtool
 
 
 params:
@@ -89,6 +99,13 @@ params:
     preprocess: "--max-depth 200"
   freebayes:
     min_alternate_fraction: 0.05 # Reduce for calling variants with lower VAFs
+
+gene_coverage:
+  min_avg_coverage: 5
+
+maf:
+  activate: true
+  primary_alias: t
 
 report:
   activate: true

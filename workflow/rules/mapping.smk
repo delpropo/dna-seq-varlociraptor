@@ -42,24 +42,6 @@ rule sort_untrimmed_fastqs:
     shell:
         "fgbio SortFastq -i {input} -o {output} 2> {log}"
 
-# rule that changed during update to v5.9.0 dna-seq-varlociraptor
-# rule annotate_umis:
-#     input:
-#         bam="results/mapped/{aligner}/{sample}.bam",
-#         umi=get_umi_fastq,
-#     output:
-#         pipe("pipe/{aligner}/{sample}.annotated.bam"),
-#     params:
-#         extra=get_annotate_umis_params,
-#     log:
-# <<<<<<< HEAD
-#         "logs/fgbio/annotate_bam/{sample}.log",
-#     threads: 1
-# =======
-#         "logs/fgbio/annotate_bam/{aligner}/{sample}.log",
-# >>>>>>> upstream/master
-#     wrapper:
-#         "v3.7.0/bio/fgbio/annotatebamwithumis"
 
 rule annotate_umis:
     input:
@@ -71,6 +53,7 @@ rule annotate_umis:
         extra=get_annotate_umis_params,
     log:
         "logs/fgbio/annotate_bam/{aligner}/{sample}.log",
+    threads: 1
     wrapper:
         "v3.7.0/bio/fgbio/annotatebamwithumis"
 

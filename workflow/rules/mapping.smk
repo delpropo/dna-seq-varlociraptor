@@ -80,13 +80,10 @@ rule mark_duplicates:
         "logs/picard/dedup/{sample}.log",
     params:
         extra=get_markduplicates_extra,
-<<<<<<< HEAD
     threads: 1
-=======
     resources:
         #https://broadinstitute.github.io/picard/faq.html
         mem_mb=3000,
->>>>>>> upstream/master
     wrapper:
         "v2.5.0/bio/picard/markduplicates"
 

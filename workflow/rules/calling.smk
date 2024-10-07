@@ -110,15 +110,9 @@ rule sort_calls:
         "logs/bcf-sort/{group}.{caller}.{scatteritem}.log",
     resources:
         mem_mb=8000,
-<<<<<<< HEAD
     threads: 1
-    shell:
-        "bcftools sort --max-mem {resources.mem_mb}M --temp-dir `mktemp -d` "
-        "-Ob {input} > {output} 2> {log}"
-=======
     wrapper:
         "v2.6.0/bio/bcftools/sort"
->>>>>>> upstream/master
 
 
 rule bcftools_concat:

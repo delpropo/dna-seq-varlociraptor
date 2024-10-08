@@ -83,10 +83,10 @@ rule mark_duplicates:
     resources:
         mem_mb=3000,
         #https://broadinstitute.github.io/picard/faq.html
-    threads: 2
+    threads: 1
     wrapper:
         "v2.5.0/bio/picard/markduplicates"
-# made threads 2 from 1 for testing
+
 
 rule calc_consensus_reads:
     input:
@@ -100,10 +100,10 @@ rule calc_consensus_reads:
         "logs/consensus/{sample}.log",
     conda:
         "../envs/rbt.yaml"
-    threads: 2
+    threads: 1
     shell:
         "rbt collapse-reads-to-fragments bam {input} {output} &> {log}"
-# made threads 2 from 1 for testing
+
 
 rule map_consensus_reads:
     input:
@@ -215,7 +215,6 @@ rule apply_bqsr:
     params:
         extra=config["params"]["gatk"]["applyBQSR"],  # optional
         java_opts="",  # optional
-    threads: 2
+    threads: 1
     wrapper:
         "v2.3.2/bio/gatk/applybqsr"
-# made threads 2 from 1 for testing

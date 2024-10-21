@@ -1348,6 +1348,11 @@ def get_vembrane_config(wildcards, input):
             "INFO['END']",
         ]
     )
+    # save columns_dict to a file called columns_dict.txt
+    with open("columns_dict.txt", "w") as file:
+        for key, value in columns_dict.items():
+            file.write(f"{key}: {value}\n")
+
     # sort columns, keeping only those in sort_order
     sorted_columns_dict = {k: columns_dict[k] for k in sort_order if k in columns_dict}
     join_items = ", ".join

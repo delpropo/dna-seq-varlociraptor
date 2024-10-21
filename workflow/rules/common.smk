@@ -1359,6 +1359,9 @@ def get_vembrane_config(wildcards, input):
     return {
         "expr": join_items(sorted_columns_dict.keys()),
         "header": join_items(sorted_columns_dict.values()),
+        # remove expr_presort and header_presort
+        "expr_presort": join_items(columns_dict.keys()),
+        "header_presort": join_items(columns_dict.values())
     }
 
 

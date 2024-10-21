@@ -14,7 +14,11 @@ rule vembrane_table:
         "logs/vembrane-table/{group}.{event}.{calling_type}.log",
     shell:
         'vembrane table --header "{params.config[header]}" "{params.config[expr]}" '
-        "{input.bcf} > {output.bcf} 2> {log}"
+        '{input.bcf} > {output.bcf} 2> {log} && '
+        'echo "Printing out header_presort" >> {log} && '
+        'echo "{params.config[header_presort]}" >> {log} && '
+        'echo "Printing out expr_presort" >> {log} && '
+        'echo "{params.config[expr_presort]}" >> {log} '
 
 
 rule tsv_to_excel:

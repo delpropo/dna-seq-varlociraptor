@@ -4,7 +4,6 @@ rule vembrane_table:
         scenario="results/scenarios/{group}.yaml",
     output:
         bcf="results/tables/{group}.{event}.{calling_type}.fdr-controlled.tsv",
-        redo="results/tables/{group}.{event}.{calling_type}.fdr-controlled.redo.tsv",
     conda:
         "../envs/vembrane.yaml"
     params:
@@ -14,14 +13,14 @@ rule vembrane_table:
     log:
         "logs/vembrane-table/{group}.{event}.{calling_type}.log",
     shell:
-        'vembrane table --header "{params.config[header]}" "{params.config[expr]}" '
-        '{input.bcf} > {output.bcf} 2> {log} && '
-        'echo "Printing out header_presort" >> {log} && '
-        'echo "{params.config[header_presort]}" >> {log} && '
-        'echo "Printing out expr_presort" >> {log} && '
-        'echo "{params.config[expr_presort]}" >> {log} &&'
         'vembrane table --header "{params.config[header_presort]}" "{params.config[expr_presort]}" '
-        '{input.redo} > {output.redo} 2>> {log} && '
+        '{input.bcf} > {output.bcf} 2> {log} '
+        # 'echo "Printing out header_presort" >> {log} && '
+        # 'echo "{params.config[header_presort]}" >> {log} && '
+        # 'echo "Printing out expr_presort" >> {log} && '
+        # 'echo "{params.config[expr_presort]}" >> {log} &&'
+        # 'vembrane table --header "{params.config[header_presort]}" "{params.config[expr_presort]}" '
+        # '{input.redo} > {output.redo} 2>> {log} && '
 
 
 

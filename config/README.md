@@ -36,6 +36,7 @@ Missing values can be specified by empty columns or by writing `NA`. Lines can b
 Varlociraptor supports integrated uncertainty aware calling and filtering of variants for arbitrary scenarios. These are defined as so-called scenarios, via a [variant calling grammar](https://varlociraptor.github.io/docs/calling#generic-variant-calling).
 * For each group, a scenario is rendered via [YTE](https://yte-template-engine.github.io).
 * Therefore, edit the template scenario (`scenario.yaml`) according to your needs. The sample sheet is available for YTE rendering as a pandas data frame in the variable `samples`. This allows to customize the scenario according to the contents of the sample sheet. You can therefore add additional columns to the sample sheet (e.g. purity) and access them in the scenario template, in order to pass the information to Varlociraptor.
+* Example scenarios for various use cases can be found in the [scenario catalog](https://varlociraptor.github.io/varlociraptor-scenarios).
 
 # Primer trimming
 
@@ -46,6 +47,7 @@ Defining primers directly in the config file is prefered when all samples come f
 In case of different panels, primers have to be set panel-wise in a seperate tsv-file.
 For each panel the following columns need to be set: `panel`, `fa1` and `fa2` (optional).
 Additionally, for each sample the corresponding panel must be defined in `samples.tsv` (column `panel`).
+If a panel is not provided for a sample, trimming will not be performed on that sample. 
 For single primer trimming only, the first entry in the config (respective in the tsv file) needs to be defined.
 
 # Annotating UMIS

@@ -8,16 +8,11 @@ rule vembrane_table:
         "../envs/vembrane.yaml"
     params:
         config=lambda wc, input: get_vembrane_config(wc, input),
-    threads:
-        1
     log:
         "logs/vembrane-table/{group}.{event}.{calling_type}.log",
     shell:
-        'vembrane table --header "{params.config[header_presort]}" "{params.config[expr_presort]}" '
-        '{input.bcf} > {output.bcf} 2> {log} '
-        # Modified params.config to use header_presort.
-
-
+        'vembrane table --header "{params.config[header]}" "{params.config[expr]}" '
+        "{input.bcf} > {output.bcf} 2> {log}"
 
 
 rule tsv_to_excel:
@@ -27,8 +22,6 @@ rule tsv_to_excel:
         xlsx="results/{x}.xlsx",
     conda:
         "../envs/excel.yaml"
-    threads:
-        1
     log:
         "logs/tsv_to_xlsx/{x}.log",
     script:

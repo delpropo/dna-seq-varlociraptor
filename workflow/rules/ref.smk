@@ -146,3 +146,17 @@ rule get_vep_plugins:
         "logs/vep/plugins.log",
     wrapper:
         "v3.3.5/bio/vep/plugins"
+
+
+rule get_pangenome:
+    output:
+        f"{pangenome_prefix}.{{ext}}",
+    params:
+        url=lambda wc: get_pangenome_url(wc.ext),
+    wildcard_constraints:
+        ext="hapl|gbz",
+    log:
+        "logs/pangenome/{ext}.log",
+    cache: "omit-software"
+    shell:
+        "curl -o {output} {params.url} 2> {log}"

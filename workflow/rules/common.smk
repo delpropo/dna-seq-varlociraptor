@@ -30,6 +30,8 @@ genome_prefix = f"resources/{genome_name}"
 genome = f"{genome_prefix}.fasta"
 genome_fai = f"{genome}.fai"
 genome_dict = f"{genome_prefix}.dict"
+pangenome_name = f"pangenome.{species}.{build}"
+pangenome_prefix = f"resources/{pangenome_name}"
 
 # cram variables
 use_cram = config.get("use_cram", False)
@@ -110,6 +112,29 @@ primer_panels = (
 )
 
 
+def is_activated(xpath):
+    c = config
+    for entry in xpath.split("/"):
+        c = c.get(entry, {})
+    return bool(c.get("activate", False))
+
+
+custom_alignment_props = (
+    (
+        pd.read_csv(
+            config["custom_alignment_properties"]["tsv"],
+            sep="\t",
+            dtype={"name": str, "path": str},
+            comment="#",
+        )
+        .set_index(["name"], drop=False)
+        .sort_index()
+    )
+    if is_activated("custom_alignment_properties")
+    else None
+)
+
+
 def get_calling_events(calling_type):
     events = [
         event
@@ -144,7 +169,7 @@ def get_final_output(wildcards):
                 if lookup(
                     dpath=f"calling/fdr-control/events/{event}/report",
                     within=config,
-                    default=False,
+                    default=True,
                 ):
                     final_output.extend(
                         expand(
@@ -260,20 +285,13 @@ def get_control_fdr_input(wildcards):
         return "results/final-calls/{group}.{calling_type}.annotated.bcf"
 
 
-def get_recalibrate_quality_input(wildcards, bai=False):
-    ext = "bai" if bai else "bam"
-    datatype = get_sample_datatype(wildcards.sample)
-    if datatype == "rna":
-        return "results/split/{{sample}}.{ext}".format(ext=ext)
-    # Post-processing of DNA samples
-    if is_activated("calc_consensus_reads"):
-        return "results/consensus/{{sample}}.{ext}".format(ext=ext)
-    elif is_activated("primers/trimming"):
-        return "results/trimmed/{{sample}}.trimmed.{ext}".format(ext=ext)
-    elif is_activated("remove_duplicates"):
-        return "results/dedup/{{sample}}.{ext}".format(ext=ext)
+def get_aligner(wildcards):
+    if get_sample_datatype(wildcards.sample) == "rna":
+        return "star"
+    elif is_activated("ref/pangenome"):
+        return "vg"
     else:
-        return "results/mapped/bwa/{{sample}}.{ext}".format(ext=ext)
+        return "bwa"
 
 
 def get_cutadapt_input(wildcards):
@@ -376,11 +394,6 @@ def is_paired_end(sample):
     return all_paired
 
 
-def group_is_paired_end(group):
-    samples = get_group_samples(group)
-    return all([is_paired_end(sample) for sample in samples])
-
-
 def get_map_reads_input(wildcards):
     if is_paired_end(wildcards.sample):
         return [
@@ -428,31 +441,43 @@ def get_sample_datatype(sample):
 
 
 def get_markduplicates_input(wildcards):
-    aligner = "star" if get_sample_datatype(wildcards.sample) == "rna" else "bwa"
+    aligner = get_aligner(wildcards)
     if sample_has_umis(wildcards.sample):
-        return "results/mapped/{aligner}/{{sample}}.annotated.bam".format(
-            aligner=aligner
-        )
+        return f"results/mapped/{aligner}/{{sample}}.annotated.bam"
     else:
-        return "results/mapped/{aligner}/{{sample}}.bam".format(aligner=aligner)
+        return f"results/mapped/{aligner}/{{sample}}.bam"
 
 
-def get_consensus_input(wildcards):
-    if is_activated("primers/trimming"):
-        return "results/trimmed/{sample}.trimmed.bam"
-    elif is_activated("remove_duplicates"):
-        return "results/dedup/{sample}.bam"
+def get_recalibrate_quality_input(wildcards, bai=False):
+    ext = "bai" if bai else "bam"
+    datatype = get_sample_datatype(wildcards.sample)
+    if datatype == "rna":
+        return "results/split/{{sample}}.{ext}".format(ext=ext)
+    # Post-processing of DNA samples
+    if is_activated("calc_consensus_reads"):
+        return "results/consensus/{{sample}}.{ext}".format(ext=ext)
     else:
-        aligner = "star" if get_sample_datatype(wildcards.sample) == "rna" else "bwa"
-        return "results/mapped/{aligner}/{{sample}}.bam".format(aligner=aligner)
+        return get_consensus_input(wildcards, bai)
 
 
-def get_trimming_input(wildcards):
+def get_consensus_input(wildcards, bai=False):
+    ext = "bai" if bai else "bam"
+    if sample_has_primers(wildcards):
+        return f"results/trimmed/{{sample}}.trimmed.{ext}"
+    else:
+        return get_trimming_input(wildcards, bai)
+
+
+def get_trimming_input(wildcards, bai=False):
+    ext = "bai" if bai else "bam"
+    aligner = get_aligner(wildcards)
+    ext = f"sorted.{ext}" if aligner == "vg" else ext
     if is_activated("remove_duplicates"):
-        return "results/dedup/{sample}.bam"
+        return "results/dedup/{{sample}}.{ext}".format(ext=ext)
     else:
-        aligner = "star" if get_sample_datatype(wildcards.sample) == "rna" else "bwa"
-        return "results/mapped/{aligner}/{{sample}}.bam".format(aligner=aligner)
+        return "results/mapped/{aligner}/{{sample}}.{ext}".format(
+            aligner=aligner, ext=ext
+        )
 
 
 def get_primer_bed(wc):
@@ -549,8 +574,6 @@ def get_markduplicates_extra(wc):
 
 def get_group_bams(wildcards, bai=False):
     ext = "bai" if bai else "bam"
-    if is_activated("primers/trimming") and not group_is_paired_end(wildcards.group):
-        WorkflowError("Primer trimming is only available for paired end data.")
     return expand(
         "results/recal/{sample}.{ext}",
         sample=get_group_samples(wildcards.group),
@@ -600,13 +623,6 @@ def get_all_group_observations(wildcards):
     )
 
 
-def is_activated(xpath):
-    c = config
-    for entry in xpath.split("/"):
-        c = c.get(entry, {})
-    return bool(c.get("activate", False))
-
-
 def get_star_read_group(wildcards):
     """Denote sample name and platform in read group."""
     platform = extract_unique_sample_column_value(wildcards.sample, "platform")
@@ -623,6 +639,13 @@ def get_read_group(wildcards):
     )
 
 
+def get_vg_read_group(wildcards):
+    platform = extract_unique_sample_column_value(wildcards.sample, "platform")
+    return r"--RGLB lib1 --RGPL {platform} --RGPU {sample} --RGSM {sample} --RGID {sample}".format(
+        sample=wildcards.sample, platform=platform
+    )
+
+
 def get_map_reads_sorting_params(wildcards, ordering=False):
     match (sample_has_umis(wildcards.sample), ordering):
         case (True, True):
@@ -633,6 +656,13 @@ def get_map_reads_sorting_params(wildcards, ordering=False):
             return "coordinate"
         case (False, False):
             return "samtools"
+
+
+def get_add_readgroup_input(wildcards):
+    if sample_has_umis(wildcards.sample):
+        return "results/mapped/vg/{sample}.annotated.bam"
+    else:
+        return "results/mapped/vg/{sample}.mate_fixed.bam"
 
 
 def get_mutational_burden_targets():
@@ -685,15 +715,19 @@ def get_selected_annotations():
     return selection
 
 
-def get_annotated_bcf(wildcards):
+def get_annotated_bcf(wildcards, index=False):
+    ext = ".csi" if index else ""
     selection = (
         get_selected_annotations() if wildcards.calling_type == "variants" else ""
     )
-    return "results/calls/{group}.{calling_type}.{scatteritem}{selection}.bcf".format(
-        group=wildcards.group,
-        calling_type=wildcards.calling_type,
-        selection=selection,
-        scatteritem=wildcards.scatteritem,
+    return (
+        "results/calls/{group}.{calling_type}.{scatteritem}{selection}.bcf{ext}".format(
+            group=wildcards.group,
+            calling_type=wildcards.calling_type,
+            selection=selection,
+            scatteritem=wildcards.scatteritem,
+            ext=ext,
+        )
     )
 
 
@@ -811,10 +845,21 @@ def get_fdr_control_params(wildcards):
 
     mode = f"--mode {mode}"
 
+    retain_artifacts = lookup(
+        dpath="retain-artifacts",
+        within=query,
+        default=lookup(
+            dpath="calling/fdr-control/retain-artifacts", within=config, default=False
+        ),
+    )
+
+    retain_artifacts = "--smart-retain-artifacts" if retain_artifacts else ""
+
     return {
         "threshold": threshold,
         "events": events,
         "mode": mode,
+        "retain_artifacts": retain_artifacts,
         "local": local,
         "filter": query.get("filter"),
     }
@@ -1348,20 +1393,12 @@ def get_vembrane_config(wildcards, input):
             "INFO['END']",
         ]
     )
-    # save columns_dict to a file called columns_dict.txt
-    with open("columns_dict.txt", "w") as file:
-        for key, value in columns_dict.items():
-            file.write(f"{key}: {value}\n")
-
     # sort columns, keeping only those in sort_order
     sorted_columns_dict = {k: columns_dict[k] for k in sort_order if k in columns_dict}
     join_items = ", ".join
     return {
         "expr": join_items(sorted_columns_dict.keys()),
         "header": join_items(sorted_columns_dict.values()),
-        # remove expr_presort and header_presort
-        "expr_presort": join_items(columns_dict.keys()),
-        "header_presort": join_items(columns_dict.values())
     }
 
 
@@ -1379,6 +1416,21 @@ def get_umi_fastq(wildcards):
         )
     else:
         return umi_read
+
+
+def sample_has_primers(wildcards):
+    sample_name = wildcards.sample
+
+    if config["primers"]["trimming"].get("primers_fa1") or (
+        "panel" in samples.columns
+        and samples.loc[samples["sample_name"] == sample_name, "panel"].notna().any()
+    ):
+        if not is_paired_end(sample_name):
+            raise WorkflowError(
+                f"Primer trimming is only available for paired-end data. Sample '{sample_name}' is not paired-end."
+            )
+        return True
+    return False
 
 
 def sample_has_umis(sample):
@@ -1427,7 +1479,7 @@ def get_primer_extra(wc, input):
     min_primer_len = get_shortest_primer_length(input.reads)
     # Check if shortest primer is below default values
     if min_primer_len < 32:
-        extra += f" -T {min_primer_len - 2}"
+        extra += f" -T {min_primer_len-2}"
     if min_primer_len < 19:
         extra += f" -k {min_primer_len}"
     return extra
@@ -1560,3 +1612,29 @@ def get_delly_excluded_regions():
         )
     else:
         return []
+
+
+def get_alignment_props(wildcards):
+    if is_activated("custom_alignment_properties"):
+        alignment_prop_column = config["custom_alignment_properties"]["column"]
+        prop_name = extract_unique_sample_column_value(
+            wildcards.sample, alignment_prop_column
+        )
+        if pd.notna(prop_name):
+            return custom_alignment_props.loc[prop_name, "path"]
+    return f"results/alignment-properties/{wildcards.group}/{wildcards.sample}.json"
+
+
+def get_pangenome_url(datatype):
+    build = config["ref"]["build"].lower()
+    source = config["ref"]["pangenome"]["source"]
+    version = config["ref"]["pangenome"]["version"]
+    if config["ref"]["species"] != "homo_sapiens" or build not in ["grch37", "grch38"]:
+        raise ValueError(
+            "Unsupported combination of species and build. Only homo_sapiens and GRCh37/GRCh38 are supported for pangenome mapping."
+        )
+    if source != "hprc":
+        raise ValueError(
+            "Unsupported pangenome source. Only 'hprc' is currently supported."
+        )
+    return f"https://s3-us-west-2.amazonaws.com/human-pangenomics/pangenomes/freeze/freeze1/minigraph-cactus/hprc-{version}-mc-{build}/hprc-{version}-mc-{build}.{datatype}"

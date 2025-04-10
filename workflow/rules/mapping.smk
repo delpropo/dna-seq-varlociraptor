@@ -1,7 +1,7 @@
-rule map_reads:
+rule map_reads_bwa:
     input:
         reads=get_map_reads_input,
-        idx=rules.bwa_index.output,
+        idx=access.random(rules.bwa_index.output),
     output:
         temp("results/mapped/bwa/{sample}.bam"),
     log:
@@ -15,13 +15,124 @@ rule map_reads:
         "v3.8.0/bio/bwa/mem"
 
 
+# Perform kmer counting for haplotype sampling:
+# https://github.com/vgteam/vg/wiki/Haplotype-Sampling#haplotype-sampling
+rule count_sample_kmers:
+    input:
+        reads=get_map_reads_input,
+    output:
+        "results/kmers/{sample}.kff",
+    params:
+        out_file=lambda wc, output: os.path.splitext(output[0])[0],
+        out_dir=lambda wc, output: os.path.dirname(output[0]),
+        mem=lambda wc, resources: resources.mem[:-2],
+    conda:
+        "../envs/kmc.yaml"
+    shadow:
+        "minimal"
+    log:
+        "logs/kmers/{sample}.log",
+    threads: max(workflow.cores, 1)
+    resources:
+        mem="64GB",
+    shell:
+        "kmc -k29 -m{params.mem} -sm -okff -t{threads} -v @<(ls {input.reads}) {params.out_file} {params.out_dir} &> {log}"
+
+
+rule create_reference_paths:
+    output:
+        "resources/reference_paths.txt",
+    params:
+        build=config["ref"]["build"],
+    log:
+        "logs/reference/paths.log",
+    shell:
+        'for chrom in {{1..22}} X Y M; do echo "{params.build}#0#chr$chrom"; done > {output} 2> {log}'
+
+
+rule map_reads_vg:
+    input:
+        reads=get_map_reads_input,
+        graph=access.random(f"{pangenome_prefix}.gbz"),
+        kmers=access.random("results/kmers/{sample}.kff"),
+        hapl=access.random(f"{pangenome_prefix}.hapl"),
+        paths=access.random("resources/reference_paths.txt"),
+    output:
+        bam=temp("results/mapped/vg/{sample}.preprocessed.bam"),
+        indexes=temp(
+            multiext(
+                f"{pangenome_prefix}.{{sample}}",
+                ".gbz",
+                ".dist",
+                ".shortread.withzip.min",
+                ".shortread.zipcodes",
+            )
+        ),
+    log:
+        "logs/mapped/vg/{sample}.log",
+    benchmark:
+        "benchmarks/vg_giraffe/{sample}.tsv"
+    params:
+        extra=lambda wc, input: f"--ref-paths {input.paths}",
+        sorting="fgbio",
+        sort_order="queryname",
+    threads: 64
+    wrapper:
+        "v5.7.0/bio/vg/giraffe"
+
+
+rule reheader_mapped_reads:
+    input:
+        "results/mapped/vg/{sample}.preprocessed.bam",
+    output:
+        temp("results/mapped/vg/{sample}.reheadered.bam"),
+    params:
+        build=config["ref"]["build"],
+    conda:
+        "../envs/samtools.yaml"
+    log:
+        "logs/reheader/{sample}.log",
+    shell:
+        "samtools view {input} -H | sed -E 's/(SN:{params.build}#0#chr)/SN:/; s/SN:M/SN:MT/' | samtools reheader - {input} > {output} 2> {log}"
+
+
+# samtools fixmate requires querysorted input
+rule fix_mate:
+    input:
+        "results/mapped/vg/{sample}.reheadered.bam",
+    output:
+        temp("results/mapped/vg/{sample}.mate_fixed.bam"),
+    log:
+        "logs/samtools/fix_mate/{sample}.log",
+    threads: 8
+    params:
+        extra="",
+    wrapper:
+        "v4.7.2/bio/samtools/fixmate"
+
+
+# adding read groups is necessary because base recalibration throws errors
+# for not being able to find read group information
+rule add_read_group:
+    input:
+        "results/mapped/vg/{sample}.mate_fixed.bam",
+    output:
+        temp("results/mapped/vg/{sample}.bam"),
+    log:
+        "logs/picard/add_rg/{sample}.log",
+    params:
+        extra=get_vg_read_group,
+    resources:
+        mem_mb=1024,
+    wrapper:
+        "v2.3.2/bio/picard/addorreplacereadgroups"
+
+
 rule merge_untrimmed_fastqs:
     input:
         get_untrimmed_fastqs,
     output:
         temp("results/untrimmed/{sample}_{read}.fastq.gz"),
-    conda:
-        "../envs/fgbio.yaml"
     log:
         "logs/merge-fastqs/untrimmed/{sample}_{read}.log",
     wildcard_constraints:
@@ -43,6 +154,7 @@ rule sort_untrimmed_fastqs:
         "fgbio SortFastq -i {input} -o {output} 2> {log}"
 
 
+# fgbio AnnotateBamsWithUmis requires querynamed sorted fastqs and bams
 rule annotate_umis:
     input:
         bam="results/mapped/{aligner}/{sample}.bam",
@@ -53,7 +165,6 @@ rule annotate_umis:
         extra=get_annotate_umis_params,
     log:
         "logs/fgbio/annotate_bam/{aligner}/{sample}.log",
-    threads: 1
     wrapper:
         "v3.7.0/bio/fgbio/annotatebamwithumis"
 
@@ -81,11 +192,22 @@ rule mark_duplicates:
     params:
         extra=get_markduplicates_extra,
     resources:
-        mem_mb=3000,
         #https://broadinstitute.github.io/picard/faq.html
-    threads: 1
+        mem_mb=3000,
     wrapper:
         "v2.5.0/bio/picard/markduplicates"
+
+
+rule sort_vg_reads:
+    input:
+        "results/{subdir}/{sample}.bam",
+    output:
+        temp("results/{subdir}/{sample}.sorted.bam"),
+    log:
+        "logs/samtools_sort/{subdir}_{sample}.log",
+    threads: 8
+    wrapper:
+        "v5.5.0/bio/samtools/sort"
 
 
 rule calc_consensus_reads:
@@ -100,7 +222,6 @@ rule calc_consensus_reads:
         "logs/consensus/{sample}.log",
     conda:
         "../envs/rbt.yaml"
-    threads: 1
     shell:
         "rbt collapse-reads-to-fragments bam {input} {output} &> {log}"
 
@@ -108,7 +229,7 @@ rule calc_consensus_reads:
 rule map_consensus_reads:
     input:
         reads=get_processed_consensus_input,
-        idx=rules.bwa_index.output,
+        idx=access.random(rules.bwa_index.output),
     output:
         temp("results/consensus/{sample}.consensus.{read_type}.mapped.bam"),
     params:
@@ -215,6 +336,5 @@ rule apply_bqsr:
     params:
         extra=config["params"]["gatk"]["applyBQSR"],  # optional
         java_opts="",  # optional
-    threads: 1
     wrapper:
         "v2.3.2/bio/gatk/applybqsr"

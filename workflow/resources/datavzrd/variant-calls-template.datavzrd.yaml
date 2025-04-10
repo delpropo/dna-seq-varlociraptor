@@ -191,7 +191,7 @@ views:
         ?f"""
         Variants in coding regions.\n{params.event_desc}\n
         SpliceAI scores are probabilities of a variant being splice-altering.\n
-        AlphaMissense scores are classified as: likely benign (<0.34), ambiguous (0.34<=, <=0.564), likely pathogenic (<0.564).
+        AlphaMissense scores are classified as: likely benign (<0.34), ambiguous (0.34<=, <=0.564), likely pathogenic (>0.564).
         """
       dataset: ?f"{group}-coding"
       render-table:
@@ -202,7 +202,8 @@ views:
                 url: https://www.ensembl.org/Homo_sapiens/Transcript/Summary?t={feature}
           'clinical significance':
             optional: true
-            custom: ?read_file(input.clin_sig)
+            spell:
+              url: v1.2.2/med/clin-sig
           hgvsp:
             custom: ?hgvs_content
           hgvsc:
@@ -258,7 +259,7 @@ views:
                 scale: "linear"
                 aux-domain-columns:
                   - "regex('.+: read depth')"
-          "regex('prob: .+')":
+          "regex('prob: (?!artifact|absent)')":
             plot:
               heatmap:
                 scale: linear
@@ -266,6 +267,14 @@ views:
                 range:
                   - white
                   - "#1f77b4"
+          "regex('prob: (artifact|absent)')":
+            plot:
+              heatmap:
+                scale: linear
+                domain: [0.0, 1.0]
+                range:
+                  - white
+                  - "#d4322c"
           "gnomad genome af":
             optional: true
             plot:
@@ -304,25 +313,19 @@ views:
           canonical:
             optional: true
             display-mode: detail
-            plot:
-              heatmap:
-                scale: "ordinal"
-                domain: ["", "True"]
-                range:
-                  - white
-                  - black
-                custom-content: ?empty_content
+            spell:
+              url: v1.2.2/logic/boolean
+              with:
+                true_value: "True"
+                false_value: "False"
           mane_plus_clinical:
             optional: true
             display-mode: detail
-            plot:
-              heatmap:
-                scale: "ordinal"
-                domain: ["", "True"]
-                range:
-                  - white
-                  - black
-                custom-content: ?empty_content
+            spell:
+              url: v1.2.2/logic/boolean
+              with:
+                true_value: "True"
+                false_value: "False"
           ?for alias in params.samples.loc[params.samples["group"] == group, "alias"]:
             '?f"{alias}: short observations"':
               optional: true
@@ -438,7 +441,7 @@ views:
                 scale: "linear"
                 aux-domain-columns:
                   - "regex('.+: read depth')"
-          "regex('prob: .+')":
+          "regex('prob: (?!artifact|absent)')":
             plot:
               heatmap:
                 scale: linear
@@ -446,6 +449,14 @@ views:
                 range:
                   - white
                   - "#1f77b4"
+          "regex('prob: (artifact|absent)')":
+            plot:
+              heatmap:
+                scale: linear
+                domain: [0.0, 1.0]
+                range:
+                  - white
+                  - "#d4322c"
           "gnomad genome af":
             optional: true
             plot:
@@ -481,25 +492,19 @@ views:
           canonical:
             optional: true
             display-mode: detail
-            plot:
-              heatmap:
-                scale: "ordinal"
-                domain: ["", "True"]
-                range:
-                  - white
-                  - black
-                custom-content: ?empty_content
+            spell:
+              url: v1.2.1/logic/boolean
+              with:
+                true_value: "True"
+                false_value: "False"
           mane_plus_clinical:
             optional: true
             display-mode: detail
-            plot:
-              heatmap:
-                scale: "ordinal"
-                domain: ["", "True"]
-                range:
-                  - white
-                  - black
-                custom-content: ?empty_content
+            spell:
+              url: v1.2.1/logic/boolean
+              with:
+                true_value: "True"
+                false_value: "False"
           ?for alias in params.samples.loc[params.samples["group"] == group, "alias"]:
             '?f"{alias}: short observations"':
               optional: true

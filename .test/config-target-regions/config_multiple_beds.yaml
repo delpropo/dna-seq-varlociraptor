@@ -16,10 +16,12 @@ ref:
   release: 100
   # Genome build
   build: R64-1-1
+  pangenome:
+    activate: false
+    vcf: ""
 
 primers:
   trimming:
-    activate: false
     primers_fa1: ""
     primers_fa2: ""
     library_length: 0
@@ -122,3 +124,8 @@ tables:
     coverage: true
     event_prob: true
   generate_excel: true
+
+custom_alignment_properties:
+  activate: false
+  column: "panel"
+  tsv: ""

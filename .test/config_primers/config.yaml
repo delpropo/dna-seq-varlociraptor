@@ -13,10 +13,12 @@ ref:
   snpeff_release: 86
   # Genome build
   build: R64-1-1
+  pangenome:
+    activate: false
+    vcf: ""
 
 primers:
   trimming:
-    activate: true
     primers_fa1: "a.scerevisiae.1_primers.fq"
     primers_fa2: "a.scerevisiae.2_primers.fq"
     library_length: 400
@@ -114,3 +116,8 @@ tables:
     coverage: true
     event_prob: true
   generate_excel: true
+
+custom_alignment_properties:
+  activate: false
+  column: "panel"
+  tsv: ""

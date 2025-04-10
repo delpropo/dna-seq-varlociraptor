@@ -12,10 +12,12 @@ ref:
   release: 100
   # Genome build
   build: GRCh38
+  pangenome:
+    activate: false  
+    vcf: ""
 
 primers:
   trimming:
-    activate: false
     primers_fa1: ""
     primers_fa2: ""
     library_length: 0
@@ -182,3 +184,8 @@ report:
   stratify:
     activate: false
     by-column: condition
+
+custom_alignment_properties:
+  activate: false
+  column: "panel"
+  tsv: ""

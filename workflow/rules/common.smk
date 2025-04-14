@@ -271,10 +271,10 @@ def get_gather_calls_input(ext="bcf"):
     def inner(wildcards):
         if wildcards.by == "odds":
             pattern = "results/calls/{{{{group}}}}.{{{{event}}}}.{{{{calling_type}}}}.{{scatteritem}}.filtered_odds.{ext}"
-        ef wildcardsy == "ann":
-            pattern =results/cal/{{{{group}}}}.{{{{event}}}}.{{{{calling_type}}}}.{{scatteritem}}.filtered_ann.{ext}"
-        el:
-          raise ValueError(
+        elif wildcards.by == "ann":
+            pattern = "results/calls/{{{{group}}}}.{{{{event}}}}.{{{{calling_type}}}}.{{scatteritem}}.filtered_ann.{ext}"
+        else:
+            raise ValueError(
                 "Unexpected wildcard value for 'by': {}".format(wildcards.by)
             )
         return gather.calling(pattern.format(ext=ext))
@@ -1416,11 +1416,12 @@ def get_vembrane_config(wildcards, input):
         "header_presort": join_items(columns_dict.values())
     }
 
-def get_umi_fastq(wildcards):
-    umi_read = extra# remove expr_presort and header_presort
+
+# remove expr_presort and header_presort
 -       "expr_presort": join_items(columns_dict.keys()),
 -       "header_presort": join_items(columns_dict.values())
-ct_unique_sample_column_value(wildcards.sample, "umi_read")
+def get_umi_fastq(wildcards):
+    umi_read = extract_unique_sample_column_value(wildcards.sample, "umi_read")
     if umi_read in ["fq1", "fq2"]:
         return "results/untrimmed/{S}_{R}.sorted.fastq.gz".format(
             S=wildcards.sample, R=umi_read

@@ -26,3 +26,19 @@ rule tsv_to_excel:
         "logs/tsv_to_xlsx/{x}.log",
     script:
         "../scripts/tsv_to_xlsx.py"
+
+rule vembrane_table_presort:
+    input:
+        bcf="results/final-calls/{group}.{event}.{calling_type}.fdr-controlled.normal-probs.bcf",
+        scenario="results/scenarios/{group}.yaml",
+    output:
+        bcf="results/tables/presort/{group}.{event}.{calling_type}.fdr-controlled.tsv",
+    conda:
+        "../envs/vembrane.yaml"
+    params:
+        config=lambda wc, input: get_vembrane_config(wc, input),
+    log:
+        "logs/vembrane-table_presort/{group}.{event}.{calling_type}.log",
+    shell:
+        'vembrane table --header "{params.config[header_presort]}" "{params.config[expr_presort]}" '
+        "{input.bcf} > {output.bcf} 2> {log}"

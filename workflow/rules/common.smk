@@ -1417,9 +1417,7 @@ def get_vembrane_config(wildcards, input):
     }
 
 
-# remove expr_presort and header_presort
--       "expr_presort": join_items(columns_dict.keys()),
--       "header_presort": join_items(columns_dict.values())
+
 def get_umi_fastq(wildcards):
     umi_read = extract_unique_sample_column_value(wildcards.sample, "umi_read")
     if umi_read in ["fq1", "fq2"]:

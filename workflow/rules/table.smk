@@ -27,6 +27,19 @@ rule tsv_to_excel:
     script:
         "../scripts/tsv_to_xlsx.py"
 
+# update
+rule tsv_to_zarr:
+    input:
+        tsv="results/{x}.tsv",
+    output:
+        xlsx="results/{x}.xlsx",
+    conda:
+        "../envs/excel.yaml"
+    log:
+        "logs/tsv_to_xlsx/{x}.log",
+    script:
+        "../scripts/tsv_to_xlsx.py"
+
 rule vembrane_table_presort:
     input:
         bcf="results/final-calls/{group}.{event}.{calling_type}.fdr-controlled.normal-probs.bcf",

@@ -232,9 +232,10 @@ def get_final_output(wildcards):
                     event=get_calling_events(calling_type),
                     calling_type=calling_type,
                 )
+            )
             final_output.extend(
                 expand(
-                    "results/tables/post/{group}.{event}.{calling_type}.fdr-controlled.tsv",
+                    "results/tables/presort/{group}.{event}.{calling_type}.fdr-controlled.tsv",
                     group=(
                         variants_groups
                         if calling_type == "variants"
@@ -270,10 +271,10 @@ def get_gather_calls_input(ext="bcf"):
     def inner(wildcards):
         if wildcards.by == "odds":
             pattern = "results/calls/{{{{group}}}}.{{{{event}}}}.{{{{calling_type}}}}.{{scatteritem}}.filtered_odds.{ext}"
-        elif wildcards.by == "ann":
-            pattern = "results/calls/{{{{group}}}}.{{{{event}}}}.{{{{calling_type}}}}.{{scatteritem}}.filtered_ann.{ext}"
-        else:
-            raise ValueError(
+        ef wildcardsy == "ann":
+            pattern =results/cal/{{{{group}}}}.{{{{event}}}}.{{{{calling_type}}}}.{{scatteritem}}.filtered_ann.{ext}"
+        el:
+          raise ValueError(
                 "Unexpected wildcard value for 'by': {}".format(wildcards.by)
             )
         return gather.calling(pattern.format(ext=ext))
@@ -1200,8 +1201,6 @@ def get_info_prob_fields_for_tables(wildcards, input):
         with open(input.scenario, "r") as scenario_file:
             scenario = yaml.load(scenario_file, Loader=yaml.SafeLoader)
             events = list(scenario["events"].keys())
-            # Ensure all event names are strings
-            events = [str(event) for event in events]
             events += ["artifact", "absent"]
             return events
     else:
@@ -1277,10 +1276,6 @@ def get_vembrane_config(wildcards, input):
         lambda x: f"INFO['PROB_{x.upper()}']",
         "prob: {}".format,
     )
-    # Add type validation for `info_prob_fields`
-    for field in info_prob_fields:
-        if not isinstance(field, str):
-            raise TypeError(f"Expected string for info_prob_fields, got {type(field)}: {field}")
 
     ## INFO fields relevant in fusion calling, only added for 'fusion' calling
     info_fusion_fields = get_info_fusion_fields_for_tables(wildcards)
@@ -1421,9 +1416,11 @@ def get_vembrane_config(wildcards, input):
         "header_presort": join_items(columns_dict.values())
     }
 
-
 def get_umi_fastq(wildcards):
-    umi_read = extract_unique_sample_column_value(wildcards.sample, "umi_read")
+    umi_read = extra# remove expr_presort and header_presort
+-       "expr_presort": join_items(columns_dict.keys()),
+-       "header_presort": join_items(columns_dict.values())
+ct_unique_sample_column_value(wildcards.sample, "umi_read")
     if umi_read in ["fq1", "fq2"]:
         return "results/untrimmed/{S}_{R}.sorted.fastq.gz".format(
             S=wildcards.sample, R=umi_read
